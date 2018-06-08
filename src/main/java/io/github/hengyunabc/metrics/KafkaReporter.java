@@ -27,218 +27,212 @@ import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 /**
- * 
  * @author hengyunabc
- * 
- *
  */
 public class KafkaReporter extends ScheduledReporter {
-	private static final Logger logger = LoggerFactory
-			.getLogger(KafkaReporter.class);
+    private static final Logger logger = LoggerFactory
+            .getLogger(KafkaReporter.class);
 
-	String topic;
-	ProducerConfig config;
-	Producer<String, String> producer;
-	ExecutorService kafkaExecutor;
+    String topic;
+    ProducerConfig config;
+    Producer<String, String> producer;
+    ExecutorService kafkaExecutor;
 
-	private String prefix;
-	private String hostName;
-	private String ip;
+    private String prefix;
+    private String hostName;
+    private String ip;
 
-	int count = 0;
-	
-	ObjectMapper mapper;
+    int count = 0;
 
-	private KafkaReporter(MetricRegistry registry, String name,
-			TimeUnit rateUnit, TimeUnit durationUnit, boolean showSamples, MetricFilter filter,
-			String topic, ProducerConfig config, String prefix,
-			String hostName, String ip) {
-		super(registry, name, filter, rateUnit, durationUnit);
-		this.topic = topic;
-		this.config = config;
-		this.prefix = prefix;
-		this.hostName = hostName;
-		this.ip = ip;
-		
-		this.mapper = new ObjectMapper().registerModule(new MetricsModule(rateUnit,
+    ObjectMapper mapper;
+
+    private KafkaReporter(MetricRegistry registry, String name,
+                          TimeUnit rateUnit, TimeUnit durationUnit, boolean showSamples, MetricFilter filter,
+                          String topic, ProducerConfig config, String prefix,
+                          String hostName, String ip) {
+        super(registry, name, filter, rateUnit, durationUnit);
+        this.topic = topic;
+        this.config = config;
+        this.prefix = prefix;
+        this.hostName = hostName;
+        this.ip = ip;
+
+        this.mapper = new ObjectMapper().registerModule(new MetricsModule(rateUnit,
                 durationUnit,
                 showSamples));
 
-		producer = new Producer<String, String>(config);
+        producer = new Producer<String, String>(config);
 
-		kafkaExecutor = Executors
-				.newSingleThreadExecutor(new ThreadFactoryBuilder()
-						.setNameFormat("kafka-producer-%d").build());
-	}
+        kafkaExecutor = Executors
+                .newSingleThreadExecutor(new ThreadFactoryBuilder()
+                        .setNameFormat("kafka-producer-%d").build());
+    }
 
-	public static Builder forRegistry(MetricRegistry registry) {
-		return new Builder(registry);
-	}
+    public static Builder forRegistry(MetricRegistry registry) {
+        return new Builder(registry);
+    }
 
-	public static class Builder {
-		private final MetricRegistry registry;
-		private String name = "kafka-reporter";
-		private TimeUnit rateUnit;
-		private TimeUnit durationUnit;
-		
-		private boolean showSamples;
-		
-		private MetricFilter filter;
-		
-		private String prefix = "";
-		private String hostName;
-		private String ip;
+    public static class Builder {
+        private final MetricRegistry registry;
+        private String name = "kafka-reporter";
+        private TimeUnit rateUnit;
+        private TimeUnit durationUnit;
 
-		private String topic;
-		private ProducerConfig config;
+        private boolean showSamples;
 
-		public Builder(MetricRegistry registry) {
-			this.registry = registry;
+        private MetricFilter filter;
 
-			this.rateUnit = TimeUnit.SECONDS;
-			this.durationUnit = TimeUnit.MILLISECONDS;
-			this.filter = MetricFilter.ALL;
-		}
+        private String prefix = "";
+        private String hostName;
+        private String ip;
 
-		/**
-		 * Convert rates to the given time unit.
-		 *
-		 * @param rateUnit
-		 *            a unit of time
-		 * @return {@code this}
-		 */
-		public Builder convertRatesTo(TimeUnit rateUnit) {
-			this.rateUnit = rateUnit;
-			return this;
-		}
+        private String topic;
+        private ProducerConfig config;
 
-		/**
-		 * Convert durations to the given time unit.
-		 *
-		 * @param durationUnit
-		 *            a unit of time
-		 * @return {@code this}
-		 */
-		public Builder convertDurationsTo(TimeUnit durationUnit) {
-			this.durationUnit = durationUnit;
-			return this;
-		}
-		
-		public Builder showSamples(boolean showSamples) {
-			this.showSamples = showSamples;
-			return this;
-		}
+        public Builder(MetricRegistry registry) {
+            this.registry = registry;
 
-		/**
-		 * Only report metrics which match the given filter.
-		 *
-		 * @param filter
-		 *            a {@link MetricFilter}
-		 * @return {@code this}
-		 */
-		public Builder filter(MetricFilter filter) {
-			this.filter = filter;
-			return this;
-		}
+            this.rateUnit = TimeUnit.SECONDS;
+            this.durationUnit = TimeUnit.MILLISECONDS;
+            this.filter = MetricFilter.ALL;
+        }
 
-		/**
-		 * default register name is "kafka-reporter".
-		 * 
-		 * @param name
-		 * @return
-		 */
-		public Builder name(String name) {
-			this.name = name;
-			return this;
-		}
+        /**
+         * Convert rates to the given time unit.
+         *
+         * @param rateUnit a unit of time
+         * @return {@code this}
+         */
+        public Builder convertRatesTo(TimeUnit rateUnit) {
+            this.rateUnit = rateUnit;
+            return this;
+        }
 
-		public Builder topic(String topic) {
-			this.topic = topic;
-			return this;
-		}
+        /**
+         * Convert durations to the given time unit.
+         *
+         * @param durationUnit a unit of time
+         * @return {@code this}
+         */
+        public Builder convertDurationsTo(TimeUnit durationUnit) {
+            this.durationUnit = durationUnit;
+            return this;
+        }
 
-		public Builder config(ProducerConfig config) {
-			this.config = config;
-			return this;
-		}
+        public Builder showSamples(boolean showSamples) {
+            this.showSamples = showSamples;
+            return this;
+        }
 
-		public Builder prefix(String prefix) {
-			this.prefix = prefix;
-			return this;
-		}
+        /**
+         * Only report metrics which match the given filter.
+         *
+         * @param filter a {@link MetricFilter}
+         * @return {@code this}
+         */
+        public Builder filter(MetricFilter filter) {
+            this.filter = filter;
+            return this;
+        }
 
-		public Builder hostName(String hostName) {
-			this.hostName = hostName;
-			return this;
-		}
+        /**
+         * default register name is "kafka-reporter".
+         *
+         * @param name
+         * @return
+         */
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
 
-		public Builder ip(String ip) {
-			this.ip = ip;
-			return this;
-		}
-		
-		/**
-		 * Builds a {@link KafkaReporter} with the given properties.
-		 *
-		 * @return a {@link KafkaReporter}
-		 */
-		public KafkaReporter build() {
-			if (hostName == null) {
-				hostName = HostUtil.getHostName();
-				logger.info(name + " detect hostName: " + hostName);
-			}
-			if (ip == null) {
-				ip = HostUtil.getHostAddress();
-				logger.info(name + " detect ip: " + ip);
-			}
+        public Builder topic(String topic) {
+            this.topic = topic;
+            return this;
+        }
 
-			return new KafkaReporter(registry, name, rateUnit, durationUnit, showSamples,
-					filter, topic, config, prefix, hostName, ip);
-		}
-	}
+        public Builder config(ProducerConfig config) {
+            this.config = config;
+            return this;
+        }
 
-	private Map<String, Object> addPrefix(SortedMap<String,?> map){
-		Map<String, Object> result = new HashMap<String, Object>(map.size());
-		for (Entry<String, ?> entry : map.entrySet()) {
-			result.put(prefix + entry.getKey(), entry.getValue());
-		}
-		return result;
-	}
+        public Builder prefix(String prefix) {
+            this.prefix = prefix;
+            return this;
+        }
 
-	@SuppressWarnings("rawtypes")
-	@Override
-	public void report(SortedMap<String, Gauge> gauges,
-			SortedMap<String, Counter> counters,
-			SortedMap<String, Histogram> histograms,
-			SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
-		
-		final Map<String, Object> result = new HashMap<String, Object>(16);
-		
-		result.put("hostName", hostName);
-		result.put("ip", ip);
-		result.put("rateUnit", getRateUnit());
-		result.put("durationUnit", getDurationUnit());
-		
-		result.put("gauges", addPrefix(gauges));
-		result.put("counters", addPrefix(counters));
-		result.put("histograms", addPrefix(histograms));
-		result.put("meters", addPrefix(meters));
-		result.put("timers", addPrefix(timers));
-		
-		result.put("clock", System.currentTimeMillis());
-		
-		kafkaExecutor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-				KeyedMessage<String, String> message = new KeyedMessage<String, String>(
-						topic, "" + count++, mapper.writeValueAsString(result));
-					producer.send(message);
-				} catch (Exception e) {
-					logger.error("send metrics to kafka error!", e);
-				}
-			}
-		});
-	}
+        public Builder hostName(String hostName) {
+            this.hostName = hostName;
+            return this;
+        }
+
+        public Builder ip(String ip) {
+            this.ip = ip;
+            return this;
+        }
+
+        /**
+         * Builds a {@link KafkaReporter} with the given properties.
+         *
+         * @return a {@link KafkaReporter}
+         */
+        public KafkaReporter build() {
+            if (hostName == null) {
+                hostName = HostUtil.getHostName();
+                logger.info(name + " detect hostName: " + hostName);
+            }
+            if (ip == null) {
+                ip = HostUtil.getHostAddress();
+                logger.info(name + " detect ip: " + ip);
+            }
+
+            return new KafkaReporter(registry, name, rateUnit, durationUnit, showSamples,
+                    filter, topic, config, prefix, hostName, ip);
+        }
+    }
+
+    private Map<String, Object> addPrefix(SortedMap<String, ?> map) {
+        Map<String, Object> result = new HashMap<String, Object>(map.size());
+        for (Entry<String, ?> entry : map.entrySet()) {
+            result.put(prefix + entry.getKey(), entry.getValue());
+        }
+        return result;
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    public void report(SortedMap<String, Gauge> gauges,
+                       SortedMap<String, Counter> counters,
+                       SortedMap<String, Histogram> histograms,
+                       SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
+
+        final Map<String, Object> result = new HashMap<String, Object>(16);
+
+        result.put("hostName", hostName);
+        result.put("ip", ip);
+        result.put("rateUnit", getRateUnit());
+        result.put("durationUnit", getDurationUnit());
+
+        result.put("gauges", addPrefix(gauges));
+        result.put("counters", addPrefix(counters));
+        result.put("histograms", addPrefix(histograms));
+        result.put("meters", addPrefix(meters));
+        result.put("timers", addPrefix(timers));
+
+        result.put("clock", System.currentTimeMillis());
+
+        kafkaExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    KeyedMessage<String, String> message = new KeyedMessage<String, String>(
+                            topic, "" + count++, mapper.writeValueAsString(result));
+                    producer.send(message);
+                } catch (Exception e) {
+                    logger.error("send metrics to kafka error!", e);
+                }
+            }
+        });
+    }
 
 }
